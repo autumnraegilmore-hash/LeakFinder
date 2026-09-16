@@ -1,190 +1,440 @@
 ```html
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>LeakFinder</title>
+<meta charset="UTF-8">
 
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #f5f5f5;
-            margin: 0;
-            padding: 20px;
-        }
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+>
 
-        .container {
-            max-width: 600px;
-            margin: auto;
-        }
+<title>LeakFinder</title>
 
-        h1 {
-            margin-bottom: 5px;
-        }
+<style>
 
-        .subtitle {
-            color: #666;
-            margin-bottom: 25px;
-        }
+body {
+    font-family: Arial, sans-serif;
+    background: #f5f5f5;
+    margin: 0;
+    padding: 20px;
+}
 
-        .card {
-            background: white;
-            padding: 25px;
-            border-radius: 15px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-        }
+.container {
+    max-width: 600px;
+    margin: auto;
+}
 
-        button {
-            width: 100%;
-            padding: 16px;
-            margin-top: 10px;
-            border: none;
-            border-radius: 10px;
-            background: #111;
-            color: white;
-            font-size: 16px;
-            cursor: pointer;
-        }
+h1 {
+    margin-bottom: 5px;
+}
 
-        .result {
-            padding: 18px 0;
-            border-bottom: 1px solid #eee;
-        }
+.subtitle {
+    color: #666;
+    margin-bottom: 25px;
+}
 
-        .amount {
-            font-size: 21px;
-            font-weight: bold;
-            margin-top: 5px;
-        }
+.card {
+    background: white;
+    padding: 25px;
+    border-radius: 15px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+}
 
-        .yearly {
-            color: #666;
-            margin-top: 4px;
-        }
+button {
+    width: 100%;
+    padding: 16px;
+    margin-top: 10px;
+    border: none;
+    border-radius: 10px;
+    background: #111;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+}
 
-        .warning {
-            color: #b00020;
-            font-weight: bold;
-        }
+input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 14px;
+    margin-top: 10px;
+}
 
-        #results {
-            display: none;
-        }
+.result {
+    padding: 18px 0;
+    border-bottom: 1px solid #eee;
+}
 
-        .total {
-            font-size: 24px;
-            font-weight: bold;
-            margin-top: 20px;
-        }
-    </style>
+.amount {
+    font-size: 21px;
+    font-weight: bold;
+    margin-top: 5px;
+}
+
+.yearly {
+    color: #666;
+    margin-top: 4px;
+}
+
+.confidence {
+    margin-top: 8px;
+    color: #555;
+    font-size: 14px;
+}
+
+.total {
+    font-size: 24px;
+    font-weight: bold;
+    margin-top: 20px;
+}
+
+#results {
+    display: none;
+}
+
+</style>
+
 </head>
 
 <body>
 
 <div class="container">
 
-    <h1>LeakFinder</h1>
+<h1>LeakFinder</h1>
 
-    <p class="subtitle">
-        Find recurring expenses that may be draining your money.
-    </p>
+<p class="subtitle">
+Find recurring expenses that may be draining your money.
+</p>
 
-    <div class="card">
 
-        <h2>Find your money leaks</h2>
+<div class="card">
 
-        <p>
-            See what LeakFinder can find using a sample transaction history.
-        </p>
+<h2>Try the demo</h2>
 
-        <button onclick="runDemo()">
-            Try Demo
-        </button>
+<p>
+See how LeakFinder finds recurring expenses.
+</p>
 
-    </div>
+<button onclick="runDemo()">
+Try Demo
+</button>
 
-    <div class="card" id="results">
+</div>
 
-        <h2>Potential money leaks</h2>
 
-        <div id="resultList"></div>
+<div class="card">
 
-        <div class="total" id="total"></div>
+<h2>Analyze your transactions</h2>
 
-    </div>
+<p>
+Upload a CSV exported from your bank.
+</p>
+
+<input
+    type="file"
+    id="fileInput"
+    accept=".csv"
+>
+
+<button onclick="analyzeFile()">
+Analyze Transactions
+</button>
+
+</div>
+
+
+<div class="card" id="results">
+
+<h2>Potential money leaks</h2>
+
+<div id="resultList"></div>
+
+<div class="total" id="total"></div>
+
+</div>
 
 </div>
 
 
 <script>
 
+
+function showResults(items) {
+
+const list =
+    document.getElementById("resultList");
+
+list.innerHTML = "";
+
+let total = 0;
+
+
+if (items.length === 0) {
+
+list.innerHTML =
+    "<p>No obvious recurring charges found.</p>";
+
+}
+
+
+items.forEach(item => {
+
+const yearly =
+    item.monthly * 12;
+
+total += yearly;
+
+
+const div =
+    document.createElement("div");
+
+div.className = "result";
+
+
+div.innerHTML = `
+
+<strong>${item.merchant}</strong>
+
+<div class="amount">
+$${item.monthly.toFixed(2)}/month
+</div>
+
+<div class="yearly">
+Approximately
+$${yearly.toFixed(2)}/year
+</div>
+
+<div class="confidence">
+Likely recurring expense
+</div>
+
+`;
+
+
+list.appendChild(div);
+
+});
+
+
+document.getElementById("total").innerHTML =
+    "Recurring yearly cost: $" +
+    total.toFixed(2);
+
+
+document.getElementById("results")
+    .style.display = "block";
+
+}
+
+
+/* DEMO */
+
 function runDemo() {
 
-    const subscriptions = [
+const subscriptions = [
 
-        {
-            merchant: "Netflix",
-            monthly: 17.99
-        },
+{
+merchant: "Netflix",
+monthly: 17.99
+},
 
-        {
-            merchant: "Planet Fitness",
-            monthly: 25.00
-        },
+{
+merchant: "Planet Fitness",
+monthly: 25.00
+},
 
-        {
-            merchant: "Spotify",
-            monthly: 11.99
-        }
+{
+merchant: "Spotify",
+monthly: 11.99
+}
 
-    ];
+];
 
-    const list = document.getElementById("resultList");
+showResults(subscriptions);
 
-    list.innerHTML = "";
+}
 
-    let total = 0;
 
-    subscriptions.forEach(item => {
+/* CSV ANALYZER */
 
-        const yearly = item.monthly * 12;
+function analyzeFile() {
 
-        total += yearly;
+const input =
+    document.getElementById("fileInput");
 
-        const div = document.createElement("div");
+if (!input.files.length) {
 
-        div.className = "result";
+alert("Please choose a CSV file first.");
 
-        div.innerHTML = `
+return;
 
-            <strong>${item.merchant}</strong>
+}
 
-            <div class="amount">
-                $${item.monthly.toFixed(2)}/month
-            </div>
 
-            <div class="yearly">
-                Approximately $${yearly.toFixed(2)}/year
-            </div>
+const file = input.files[0];
 
-        `;
+const reader = new FileReader();
 
-        list.appendChild(div);
 
-    });
+reader.onload = function(event) {
 
-    document.getElementById("total").innerHTML =
-        "Potential yearly savings: $" + total.toFixed(2);
+const text =
+    event.target.result;
 
-    document.getElementById("results").style.display = "block";
+const lines =
+    text.split(/\r?\n/);
+
+
+const transactions = {};
+
+
+for (
+    let i = 1;
+    i < lines.length;
+    i++
+) {
+
+let line =
+    lines[i].trim();
+
+if (!line) continue;
+
+
+/*
+Handles simple CSV files.
+*/
+
+const parts =
+    line.split(",");
+
+if (parts.length < 3)
+    continue;
+
+
+const description =
+    parts[1].trim();
+
+
+const amount =
+    parseFloat(
+        parts[2]
+        .replace("$", "")
+        .replace(",", "")
+    );
+
+
+if (isNaN(amount))
+    continue;
+
+
+/*
+Ignore normal purchases
+that happen only once.
+*/
+
+if (!transactions[description]) {
+
+transactions[description] = [];
+
+}
+
+
+transactions[description].push(amount);
+
+}
+
+
+const recurring = [];
+
+
+for (
+    const merchant
+    in transactions
+) {
+
+const amounts =
+    transactions[merchant];
+
+
+/*
+Require at least
+three transactions.
+*/
+
+if (amounts.length < 3)
+    continue;
+
+
+/*
+Calculate average amount.
+*/
+
+const average =
+    amounts.reduce(
+        (a,b) => a + b,
+        0
+    ) / amounts.length;
+
+
+/*
+Check whether amounts
+are reasonably similar.
+*/
+
+let similar = true;
+
+
+for (
+    const amount
+    of amounts
+) {
+
+const difference =
+    Math.abs(amount - average)
+    / average;
+
+
+if (difference > 0.15) {
+
+similar = false;
+
+break;
+
+}
+
+}
+
+
+if (!similar)
+    continue;
+
+
+recurring.push({
+
+merchant: merchant,
+
+monthly: average
+
+});
+
+}
+
+
+showResults(recurring);
+
+};
+
+
+reader.readAsText(file);
 
 }
 
 </script>
 
 </body>
+
 </html>
 ```
