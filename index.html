@@ -15,63 +15,121 @@
 
 <style>
 
+* {
+    box-sizing: border-box;
+}
+
 body {
-    font-family: Arial, sans-serif;
-    background: #f5f5f5;
     margin: 0;
-    padding: 20px;
+    font-family: Arial, sans-serif;
+    background: #f4f6f8;
+    color: #111;
 }
 
 .container {
     max-width: 600px;
     margin: auto;
+    padding: 20px;
 }
 
-h1 {
-    margin-bottom: 5px;
+.logo {
+    font-size: 32px;
+    font-weight: 800;
+    margin-top: 15px;
 }
 
-.subtitle {
+.tagline {
     color: #666;
+    margin-top: 5px;
     margin-bottom: 25px;
 }
 
 .card {
     background: white;
-    padding: 25px;
-    border-radius: 15px;
-    margin-bottom: 20px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    border-radius: 18px;
+    padding: 22px;
+    margin-bottom: 18px;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.06);
+}
+
+.hero {
+    background: #111;
+    color: white;
+}
+
+.hero p {
+    color: #ccc;
+}
+
+.hero button {
+    background: white;
+    color: #111;
+}
+
+h2 {
+    margin-top: 0;
 }
 
 button {
     width: 100%;
     padding: 16px;
-    margin-top: 10px;
     border: none;
-    border-radius: 10px;
+    border-radius: 12px;
     background: #111;
     color: white;
     font-size: 16px;
+    font-weight: bold;
     cursor: pointer;
-}
-
-input {
-    width: 100%;
-    box-sizing: border-box;
-    padding: 14px;
     margin-top: 10px;
 }
 
-.result {
-    padding: 18px 0;
-    border-bottom: 1px solid #eee;
+button:active {
+    transform: scale(0.98);
 }
 
-.amount {
-    font-size: 21px;
+input[type="file"] {
+    width: 100%;
+    padding: 12px;
+    margin-top: 10px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    background: #fafafa;
+}
+
+.privacy {
+    font-size: 13px;
+    color: #777;
+    margin-top: 12px;
+    line-height: 1.5;
+}
+
+.big-number {
+    font-size: 38px;
+    font-weight: 800;
+    margin: 8px 0;
+}
+
+.small-label {
+    color: #777;
+    font-size: 14px;
+}
+
+.result {
+    border: 1px solid #eee;
+    border-radius: 14px;
+    padding: 17px;
+    margin-top: 12px;
+}
+
+.merchant {
+    font-size: 18px;
     font-weight: bold;
-    margin-top: 5px;
+}
+
+.monthly {
+    font-size: 23px;
+    font-weight: bold;
+    margin-top: 6px;
 }
 
 .yearly {
@@ -79,43 +137,58 @@ input {
     margin-top: 4px;
 }
 
-.confidence {
-    margin-top: 8px;
+.reason {
+    background: #f5f5f5;
+    padding: 10px;
+    border-radius: 9px;
+    margin-top: 12px;
+    font-size: 13px;
     color: #555;
-    font-size: 14px;
-}
-
-.total {
-    font-size: 24px;
-    font-weight: bold;
-    margin-top: 20px;
 }
 
 #results {
     display: none;
 }
 
+.empty {
+    color: #666;
+}
+
+.footer {
+    text-align: center;
+    color: #888;
+    font-size: 12px;
+    padding: 20px 0;
+}
+
 </style>
 
 </head>
 
+
 <body>
+
 
 <div class="container">
 
-<h1>LeakFinder</h1>
 
-<p class="subtitle">
-Find recurring expenses that may be draining your money.
-</p>
+<div class="logo">
+LeakFinder
+</div>
+
+<div class="tagline">
+Find recurring expenses you may have forgotten about.
+</div>
 
 
-<div class="card">
+<div class="card hero">
 
-<h2>Try the demo</h2>
+<h2>
+Where is your money going?
+</h2>
 
 <p>
-See how LeakFinder finds recurring expenses.
+LeakFinder looks for recurring charges in your transaction history.
 </p>
 
 <button onclick="runDemo()">
@@ -127,10 +200,12 @@ Try Demo
 
 <div class="card">
 
-<h2>Analyze your transactions</h2>
+<h2>
+Analyze your transactions
+</h2>
 
 <p>
-Upload a CSV exported from your bank.
+Export your transactions from your bank as a CSV file and upload them here.
 </p>
 
 <input
@@ -143,18 +218,48 @@ Upload a CSV exported from your bank.
 Analyze Transactions
 </button>
 
+<div class="privacy">
+
+🔒 Your file is analyzed directly in your browser.
+It is not uploaded to a LeakFinder server.
+
+</div>
+
 </div>
 
 
-<div class="card" id="results">
+<div id="results" class="card">
 
-<h2>Potential money leaks</h2>
+<div class="small-label">
+Potential recurring spending
+</div>
+
+<div
+    id="total"
+    class="big-number">
+$0
+</div>
+
+<div class="small-label">
+estimated annual cost
+</div>
+
+
+<h2 style="margin-top:30px;">
+Recurring charges
+</h2>
 
 <div id="resultList"></div>
 
-<div class="total" id="total"></div>
+</div>
+
+
+<div class="footer">
+
+LeakFinder • Early version
 
 </div>
+
 
 </div>
 
@@ -164,26 +269,37 @@ Analyze Transactions
 
 function showResults(items) {
 
+
+const results =
+    document.getElementById("results");
+
 const list =
     document.getElementById("resultList");
 
+
 list.innerHTML = "";
+
 
 let total = 0;
 
 
 if (items.length === 0) {
 
-list.innerHTML =
-    "<p>No obvious recurring charges found.</p>";
+list.innerHTML = `
+    <p class="empty">
+    We couldn't identify any obvious recurring charges.
+    </p>
+`;
 
 }
 
 
 items.forEach(item => {
 
+
 const yearly =
     item.monthly * 12;
+
 
 total += yearly;
 
@@ -191,14 +307,17 @@ total += yearly;
 const div =
     document.createElement("div");
 
+
 div.className = "result";
 
 
 div.innerHTML = `
 
-<strong>${item.merchant}</strong>
+<div class="merchant">
+${item.merchant}
+</div>
 
-<div class="amount">
+<div class="monthly">
 $${item.monthly.toFixed(2)}/month
 </div>
 
@@ -207,8 +326,9 @@ Approximately
 $${yearly.toFixed(2)}/year
 </div>
 
-<div class="confidence">
-Likely recurring expense
+<div class="reason">
+🔎 Flagged because this charge appears
+regularly at a similar amount.
 </div>
 
 `;
@@ -216,16 +336,20 @@ Likely recurring expense
 
 list.appendChild(div);
 
+
 });
 
 
-document.getElementById("total").innerHTML =
-    "Recurring yearly cost: $" +
-    total.toFixed(2);
+document.getElementById("total").textContent =
+    "$" + total.toFixed(2);
 
 
-document.getElementById("results")
-    .style.display = "block";
+results.style.display = "block";
+
+
+results.scrollIntoView({
+    behavior: "smooth"
+});
 
 }
 
@@ -234,26 +358,28 @@ document.getElementById("results")
 
 function runDemo() {
 
-const subscriptions = [
+
+const demoData = [
 
 {
-merchant: "Netflix",
-monthly: 17.99
+    merchant: "Netflix",
+    monthly: 17.99
 },
 
 {
-merchant: "Planet Fitness",
-monthly: 25.00
+    merchant: "Planet Fitness",
+    monthly: 25.00
 },
 
 {
-merchant: "Spotify",
-monthly: 11.99
+    merchant: "Spotify",
+    monthly: 11.99
 }
 
 ];
 
-showResults(subscriptions);
+
+showResults(demoData);
 
 }
 
@@ -262,27 +388,37 @@ showResults(subscriptions);
 
 function analyzeFile() {
 
+
 const input =
     document.getElementById("fileInput");
 
+
 if (!input.files.length) {
 
-alert("Please choose a CSV file first.");
+alert(
+    "Please choose a CSV file first."
+);
 
 return;
 
 }
 
 
-const file = input.files[0];
+const file =
+    input.files[0];
 
-const reader = new FileReader();
+
+const reader =
+    new FileReader();
 
 
-reader.onload = function(event) {
+reader.onload =
+function(event) {
+
 
 const text =
     event.target.result;
+
 
 const lines =
     text.split(/\r?\n/);
@@ -297,24 +433,24 @@ for (
     i++
 ) {
 
-let line =
+
+const line =
     lines[i].trim();
 
-if (!line) continue;
 
+if (!line)
+    continue;
 
-/*
-Handles simple CSV files.
-*/
 
 const parts =
     line.split(",");
+
 
 if (parts.length < 3)
     continue;
 
 
-const description =
+const merchant =
     parts[1].trim();
 
 
@@ -326,23 +462,21 @@ const amount =
     );
 
 
-if (isNaN(amount))
+if (
+    !merchant ||
+    isNaN(amount)
+)
     continue;
 
 
-/*
-Ignore normal purchases
-that happen only once.
-*/
+if (!transactions[merchant]) {
 
-if (!transactions[description]) {
-
-transactions[description] = [];
+transactions[merchant] = [];
 
 }
 
 
-transactions[description].push(amount);
+transactions[merchant].push(amount);
 
 }
 
@@ -355,22 +489,14 @@ for (
     in transactions
 ) {
 
+
 const amounts =
     transactions[merchant];
 
 
-/*
-Require at least
-three transactions.
-*/
-
 if (amounts.length < 3)
     continue;
 
-
-/*
-Calculate average amount.
-*/
 
 const average =
     amounts.reduce(
@@ -378,11 +504,6 @@ const average =
         0
     ) / amounts.length;
 
-
-/*
-Check whether amounts
-are reasonably similar.
-*/
 
 let similar = true;
 
@@ -392,9 +513,11 @@ for (
     of amounts
 ) {
 
+
 const difference =
-    Math.abs(amount - average)
-    / average;
+    Math.abs(
+        amount - average
+    ) / average;
 
 
 if (difference > 0.15) {
@@ -414,9 +537,11 @@ if (!similar)
 
 recurring.push({
 
-merchant: merchant,
+merchant:
+    merchant,
 
-monthly: average
+monthly:
+    average
 
 });
 
@@ -425,6 +550,7 @@ monthly: average
 
 showResults(recurring);
 
+
 };
 
 
@@ -432,7 +558,9 @@ reader.readAsText(file);
 
 }
 
+
 </script>
+
 
 </body>
 
