@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>LeakFinder</title>
 
     <style>
@@ -16,7 +17,7 @@
 
         .container {
             max-width: 600px;
-            margin: 0 auto;
+            margin: auto;
         }
 
         h1 {
@@ -25,7 +26,7 @@
 
         .subtitle {
             color: #666;
-            margin-bottom: 30px;
+            margin-bottom: 25px;
         }
 
         .card {
@@ -36,19 +37,10 @@
             box-shadow: 0 2px 10px rgba(0,0,0,0.08);
         }
 
-        input {
-            width: 100%;
-            box-sizing: border-box;
-            padding: 15px;
-            border: 1px solid #ccc;
-            border-radius: 10px;
-            margin-top: 10px;
-        }
-
         button {
             width: 100%;
-            padding: 15px;
-            margin-top: 15px;
+            padding: 16px;
+            margin-top: 10px;
             border: none;
             border-radius: 10px;
             background: #111;
@@ -58,21 +50,34 @@
         }
 
         .result {
-            padding: 15px;
+            padding: 18px 0;
             border-bottom: 1px solid #eee;
         }
 
         .amount {
-            font-size: 20px;
+            font-size: 21px;
             font-weight: bold;
+            margin-top: 5px;
         }
 
         .yearly {
-            color: #777;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        .warning {
+            color: #b00020;
+            font-weight: bold;
         }
 
         #results {
             display: none;
+        }
+
+        .total {
+            font-size: 24px;
+            font-weight: bold;
+            margin-top: 20px;
         }
     </style>
 </head>
@@ -92,13 +97,11 @@
         <h2>Find your money leaks</h2>
 
         <p>
-            Download your bank transactions as a CSV file and upload it here.
+            See what LeakFinder can find using a sample transaction history.
         </p>
 
-        <input type="file" id="fileInput" accept=".csv">
-
-        <button onclick="analyzeFile()">
-            Analyze my transactions
+        <button onclick="runDemo()">
+            Try Demo
         </button>
 
     </div>
@@ -109,122 +112,75 @@
 
         <div id="resultList"></div>
 
+        <div class="total" id="total"></div>
+
     </div>
 
 </div>
 
+
 <script>
 
-function analyzeFile() {
+function runDemo() {
 
-    const fileInput = document.getElementById("fileInput");
+    const subscriptions = [
 
-    if (!fileInput.files.length) {
-        alert("Please choose a CSV file first.");
-        return;
-    }
+        {
+            merchant: "Netflix",
+            monthly: 17.99
+        },
 
-    const file = fileInput.files[0];
+        {
+            merchant: "Planet Fitness",
+            monthly: 25.00
+        },
 
-    const reader = new FileReader();
-
-    reader.onload = function(event) {
-
-        const text = event.target.result;
-
-        const lines = text.split("\n");
-
-        const transactions = {};
-
-        for (let i = 1; i < lines.length; i++) {
-
-            const line = lines[i].trim();
-
-            if (!line) continue;
-
-            const parts = line.split(",");
-
-            if (parts.length < 3) continue;
-
-            const description = parts[1].trim();
-            const amount = parseFloat(
-                parts[2].replace("$", "").replace(",", "")
-            );
-
-            if (isNaN(amount)) continue;
-
-            if (!transactions[description]) {
-                transactions[description] = [];
-            }
-
-            transactions[description].push(amount);
+        {
+            merchant: "Spotify",
+            monthly: 11.99
         }
 
-        const recurring = [];
+    ];
 
-        for (const merchant in transactions) {
-
-            const amounts = transactions[merchant];
-
-            if (amounts.length >= 3) {
-
-                const average =
-                    amounts.reduce((a,b) => a + b, 0)
-                    / amounts.length;
-
-                recurring.push({
-                    merchant: merchant,
-                    monthly: average
-                });
-            }
-        }
-
-        displayResults(recurring);
-    };
-
-    reader.readAsText(file);
-}
-
-
-function displayResults(items) {
-
-    const results = document.getElementById("results");
     const list = document.getElementById("resultList");
 
     list.innerHTML = "";
 
-    if (items.length === 0) {
+    let total = 0;
 
-        list.innerHTML =
-            "<p>No recurring charges found yet.</p>";
+    subscriptions.forEach(item => {
 
-    } else {
+        const yearly = item.monthly * 12;
 
-        items.forEach(item => {
+        total += yearly;
 
-            const yearly = item.monthly * 12;
+        const div = document.createElement("div");
 
-            const div = document.createElement("div");
+        div.className = "result";
 
-            div.className = "result";
+        div.innerHTML = `
 
-            div.innerHTML = `
-                <strong>${item.merchant}</strong>
+            <strong>${item.merchant}</strong>
 
-                <div class="amount">
-                    $${item.monthly.toFixed(2)}/month
-                </div>
+            <div class="amount">
+                $${item.monthly.toFixed(2)}/month
+            </div>
 
-                <div class="yearly">
-                    Approximately $${yearly.toFixed(2)}/year
-                </div>
-            `;
+            <div class="yearly">
+                Approximately $${yearly.toFixed(2)}/year
+            </div>
 
-            list.appendChild(div);
-        });
-    }
+        `;
 
-    results.style.display = "block";
+        list.appendChild(div);
+
+    });
+
+    document.getElementById("total").innerHTML =
+        "Potential yearly savings: $" + total.toFixed(2);
+
+    document.getElementById("results").style.display = "block";
+
 }
 
 </script>
