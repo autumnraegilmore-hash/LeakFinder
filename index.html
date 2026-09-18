@@ -1340,3 +1340,921 @@ function showFileError(message) {
 </body>
 </html>
     
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LeakFinder</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      background: #f7f7f7;
+      color: #222;
+    }
+
+    .container {
+      max-width: 700px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 45px;
+    }
+
+    h1 {
+      font-size: 42px;
+      margin-bottom: 10px;
+    }
+
+    h2 {
+      margin-top: 40px;
+    }
+
+    p {
+      line-height: 1.5;
+    }
+
+    button {
+      background: #222;
+      color: white;
+      border: none;
+      padding: 14px 24px;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 15px;
+    }
+
+    button:hover {
+      opacity: 0.85;
+    }
+
+    .card {
+      background: white;
+      padding: 20px;
+      margin: 15px 0;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .merchant {
+      font-size: 20px;
+      font-weight: bold;
+    }
+
+    .amount {
+      font-size: 18px;
+      margin-top: 6px;
+    }
+
+    .annual {
+      font-size: 28px;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+
+    .muted {
+      color: #666;
+    }
+
+    #results {
+      display: none;
+    }
+
+    #fileInput {
+      display: none;
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 50px;
+      color: #777;
+      font-size: 14px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+
+    <header>
+      <h1>LeakFinder</h1>
+      <p>Find recurring expenses you may have forgotten about.</p>
+    </header>
+
+    <section>
+      <h2>Where is your money going?</h2>
+
+      <p>
+        LeakFinder looks for recurring expenses and patterns that are easy to overlook.
+      </p>
+
+      <button onclick="runDemo()">Try Demo</button>
+
+      <input
+        type="file"
+        id="fileInput"
+        accept=".csv,.txt"
+        onchange="analyzeSelectedFile()"
+      >
+
+      <button onclick="document.getElementById('fileInput').click()">
+        Analyze My File
+      </button>
+
+      <p class="muted">
+        🔒 Your file is analyzed directly in your browser.
+      </p>
+    </section>
+
+    <section id="results">
+
+      <h2>Your recurring expenses</h2>
+
+      <div id="resultList"></div>
+
+      <div class="card">
+        <div class="muted">
+          Estimated annual cost of these recurring expenses
+        </div>
+
+        <div class="annual" id="annualCost">
+          $0.00
+        </div>
+      </div>
+
+    </section>
+
+    <footer>
+      LeakFinder • Early version
+    </footer>
+
+  </div>
+
+  <script>
+
+    function runDemo() {
+
+      const demoExpenses = [
+        {
+          merchant: "Netflix",
+          amount: 15.49,
+          frequency: "monthly"
+        },
+        {
+          merchant: "Spotify",
+          amount: 11.99,
+          frequency: "monthly"
+        },
+        {
+          merchant: "Planet Fitness",
+          amount: 24.99,
+          frequency: "monthly"
+        }
+      ];
+
+      showResults(demoExpenses);
+    }
+
+
+    function showResults(expenses) {
+
+      const resultList = document.getElementById("resultList");
+
+      resultList.innerHTML = "";
+
+      let annualTotal = 0;
+
+      expenses.forEach(function(expense) {
+
+        const annualAmount = expense.amount * 12;
+
+        annualTotal += annualAmount;
+
+        const card = document.createElement("div");
+
+        card.className = "card";
+
+        card.innerHTML = `
+          <div class="merchant">${escapeHTML(expense.merchant)}</div>
+          <div class="amount">
+            $${expense.amount.toFixed(2)} / ${expense.frequency}
+          </div>
+        `;
+
+        resultList.appendChild(card);
+      });
+
+      document.getElementById("annualCost").textContent =
+        "$" + annualTotal.toFixed(2);
+
+      document.getElementById("results").style.display = "block";
+
+      document.getElementById("results").scrollIntoView({
+        behavior: "smooth"
+      });
+    }
+
+
+    function analyzeSelectedFile() {
+
+      const fileInput = document.getElementById("fileInput");
+
+      const file = fileInput.files[0];
+
+      if (!file) {
+        return;
+      }
+
+      const reader = new FileReader();
+
+      reader.onload = function(event) {
+
+        const text = event.target.result;
+
+        analyzeCSV(text);
+      };
+
+      reader.readAsText(file);
+    }
+
+
+    function analyzeCSV(text) {
+
+      const lines = text
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(line => line.length > 0);
+
+      if (lines.length < 2) {
+
+        alert("This file doesn't appear to contain enough transaction data.");
+
+        return;
+      }
+
+      const rows = lines.map(parseCSVLine);
+
+      const headers = rows[0].map(function(header) {
+        return header.toLowerCase().trim();
+      });
+
+      const dateIndex = findColumn(headers, [
+        "date",
+        "transaction date",
+        "posted date",
+        "posting date"
+      ]);
+
+      const descriptionIndex = findColumn(headers, [
+        "description",
+        "merchant",
+        "merchant name",
+        "name",
+        "transaction",
+        "payee"
+      ]);
+
+      const amountIndex = findColumn(headers, [
+        "amount",
+        "transaction amount",
+        "debit",
+        "withdrawal"
+      ]);
+
+      if (descriptionIndex === -1 || amountIndex === -1) {
+
+        alert(
+          "LeakFinder couldn't identify the transaction description and amount columns in this file."
+        );
+
+        return;
+      }
+
+      const transactions = [];
+
+      for (let i = 1; i < rows.length; i++) {
+
+        const row = rows[i];
+
+        const description = row[descriptionIndex];
+
+        const amountText = row[amountIndex];
+
+        if (!description || !amountText) {
+          continue;
+        }
+
+        const amount = parseMoney(amountText);
+
+        if (!isNaN(amount) && amount > 0) {
+
+          transactions.push({
+            merchant: cleanMerchant(description),
+            amount: amount
+          });
+        }
+      }
+
+      const grouped = {};
+
+      transactions.forEach(function(transaction) {
+
+        const key = transaction.merchant.toLowerCase();
+
+        if (!grouped[key]) {
+
+          grouped[key] = {
+            merchant: transaction.merchant,
+            amounts: []
+          };
+        }
+
+        grouped[key].amounts.push(transaction.amount);
+      });
+
+
+      const recurring = [];
+
+      Object.keys(grouped).forEach(function(key) {
+
+        const item = grouped[key];
+
+        if (item.amounts.length >= 2) {
+
+          const average =
+            item.amounts.reduce((a, b) => a + b, 0)
+            / item.amounts.length;
+
+          recurring.push({
+            merchant: item.merchant,
+            amount: average,
+            frequency: "recurring"
+          });
+        }
+      });
+
+
+      if (recurring.length === 0) {
+
+        alert(
+          "LeakFinder didn't find obvious recurring expenses in this file."
+        );
+
+        return;
+      }
+
+      showResults(recurring);
+    }
+
+
+    function findColumn(headers, possibilities) {
+
+      for (let i = 0; i < possibilities.length; i++) {
+
+        const target = possibilities[i];
+
+        const index = headers.indexOf(target);
+
+        if (index !== -1) {
+          return index;
+        }
+      }
+
+      return -1;
+    }
+
+
+    function parseMoney(value) {
+
+      return parseFloat(
+        String(value)
+          .replace(/[$,]/g, "")
+          .replace(/[()]/g, "")
+          .trim()
+      );
+    }
+
+
+    function cleanMerchant(value) {
+
+      return String(value)
+        .replace(/\s+/g, " ")
+        .replace(/[*#]/g, "")
+        .trim();
+    }
+
+
+    function parseCSVLine(line) {
+
+      const result = [];
+
+      let current = "";
+
+      let insideQuotes = false;
+
+      for (let i = 0; i < line.length; i++) {
+
+        const char = line[i];
+
+        if (char === '"') {
+
+          insideQuotes = !insideQuotes;
+
+        } else if (char === "," && !insideQuotes) {
+
+          result.push(current.trim());
+
+          current = "";
+
+        } else {
+
+          current += char;
+        }
+      }
+
+      result.push(current.trim());
+
+      return result;
+    }
+
+
+    function escapeHTML(value) {
+
+      return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+  </script>
+
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LeakFinder</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      background: #f7f7f7;
+      color: #222;
+    }
+
+    .container {
+      max-width: 700px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 45px;
+    }
+
+    h1 {
+      font-size: 42px;
+      margin-bottom: 10px;
+    }
+
+    h2 {
+      margin-top: 40px;
+    }
+
+    p {
+      line-height: 1.5;
+    }
+
+    button {
+      background: #222;
+      color: white;
+      border: none;
+      padding: 14px 24px;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 15px;
+    }
+
+    button:hover {
+      opacity: 0.85;
+    }
+
+    .card {
+      background: white;
+      padding: 20px;
+      margin: 15px 0;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .merchant {
+      font-size: 20px;
+      font-weight: bold;
+    }
+
+    .amount {
+      font-size: 18px;
+      margin-top: 6px;
+    }
+
+    .annual {
+      font-size: 28px;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+
+    .muted {
+      color: #666;
+    }
+
+    #results {
+      display: none;
+    }
+
+    #fileInput {
+      display: none;
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 50px;
+      color: #777;
+      font-size: 14px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+
+    <header>
+      <h1>LeakFinder</h1>
+      <p>Find recurring expenses you may have forgotten about.</p>
+    </header>
+
+    <section>
+      <h2>Where is your money going?</h2>
+
+      <p>
+        LeakFinder looks for recurring expenses and patterns that are easy to overlook.
+      </p>
+
+      <button onclick="runDemo()">Try Demo</button>
+
+      <input
+        type="file"
+        id="fileInput"
+        accept=".csv,.txt"
+        onchange="analyzeSelectedFile()"
+      >
+
+      <button onclick="document.getElementById('fileInput').click()">
+        Analyze My File
+      </button>
+
+      <p class="muted">
+        🔒 Your file is analyzed directly in your browser.
+      </p>
+    </section>
+
+    <section id="results">
+
+      <h2>Your recurring expenses</h2>
+
+      <div id="resultList"></div>
+
+      <div class="card">
+        <div class="muted">
+          Estimated annual cost of these recurring expenses
+        </div>
+
+        <div class="annual" id="annualCost">
+          $0.00
+        </div>
+      </div>
+
+    </section>
+
+    <footer>
+      LeakFinder • Early version
+    </footer>
+
+  </div>
+
+  <script>
+
+    function runDemo() {
+
+      const demoExpenses = [
+        {
+          merchant: "Netflix",
+          amount: 15.49,
+          frequency: "monthly"
+        },
+        {
+          merchant: "Spotify",
+          amount: 11.99,
+          frequency: "monthly"
+        },
+        {
+          merchant: "Planet Fitness",
+          amount: 24.99,
+          frequency: "monthly"
+        }
+      ];
+
+      showResults(demoExpenses);
+    }
+
+
+    function showResults(expenses) {
+
+      const resultList = document.getElementById("resultList");
+
+      resultList.innerHTML = "";
+
+      let annualTotal = 0;
+
+      expenses.forEach(function(expense) {
+
+        const annualAmount = expense.amount * 12;
+
+        annualTotal += annualAmount;
+
+        const card = document.createElement("div");
+
+        card.className = "card";
+
+        card.innerHTML = `
+          <div class="merchant">${escapeHTML(expense.merchant)}</div>
+          <div class="amount">
+            $${expense.amount.toFixed(2)} / ${expense.frequency}
+          </div>
+        `;
+
+        resultList.appendChild(card);
+      });
+
+      document.getElementById("annualCost").textContent =
+        "$" + annualTotal.toFixed(2);
+
+      document.getElementById("results").style.display = "block";
+
+      document.getElementById("results").scrollIntoView({
+        behavior: "smooth"
+      });
+    }
+
+
+    function analyzeSelectedFile() {
+
+      const fileInput = document.getElementById("fileInput");
+
+      const file = fileInput.files[0];
+
+      if (!file) {
+        return;
+      }
+
+      const reader = new FileReader();
+
+      reader.onload = function(event) {
+
+        const text = event.target.result;
+
+        analyzeCSV(text);
+      };
+
+      reader.readAsText(file);
+    }
+
+
+    function analyzeCSV(text) {
+
+      const lines = text
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(line => line.length > 0);
+
+      if (lines.length < 2) {
+
+        alert("This file doesn't appear to contain enough transaction data.");
+
+        return;
+      }
+
+      const rows = lines.map(parseCSVLine);
+
+      const headers = rows[0].map(function(header) {
+        return header.toLowerCase().trim();
+      });
+
+      const dateIndex = findColumn(headers, [
+        "date",
+        "transaction date",
+        "posted date",
+        "posting date"
+      ]);
+
+      const descriptionIndex = findColumn(headers, [
+        "description",
+        "merchant",
+        "merchant name",
+        "name",
+        "transaction",
+        "payee"
+      ]);
+
+      const amountIndex = findColumn(headers, [
+        "amount",
+        "transaction amount",
+        "debit",
+        "withdrawal"
+      ]);
+
+      if (descriptionIndex === -1 || amountIndex === -1) {
+
+        alert(
+          "LeakFinder couldn't identify the transaction description and amount columns in this file."
+        );
+
+        return;
+      }
+
+      const transactions = [];
+
+      for (let i = 1; i < rows.length; i++) {
+
+        const row = rows[i];
+
+        const description = row[descriptionIndex];
+
+        const amountText = row[amountIndex];
+
+        if (!description || !amountText) {
+          continue;
+        }
+
+        const amount = parseMoney(amountText);
+
+        if (!isNaN(amount) && amount > 0) {
+
+          transactions.push({
+            merchant: cleanMerchant(description),
+            amount: amount
+          });
+        }
+      }
+
+      const grouped = {};
+
+      transactions.forEach(function(transaction) {
+
+        const key = transaction.merchant.toLowerCase();
+
+        if (!grouped[key]) {
+
+          grouped[key] = {
+            merchant: transaction.merchant,
+            amounts: []
+          };
+        }
+
+        grouped[key].amounts.push(transaction.amount);
+      });
+
+
+      const recurring = [];
+
+      Object.keys(grouped).forEach(function(key) {
+
+        const item = grouped[key];
+
+        if (item.amounts.length >= 2) {
+
+          const average =
+            item.amounts.reduce((a, b) => a + b, 0)
+            / item.amounts.length;
+
+          recurring.push({
+            merchant: item.merchant,
+            amount: average,
+            frequency: "recurring"
+          });
+        }
+      });
+
+
+      if (recurring.length === 0) {
+
+        alert(
+          "LeakFinder didn't find obvious recurring expenses in this file."
+        );
+
+        return;
+      }
+
+      showResults(recurring);
+    }
+
+
+    function findColumn(headers, possibilities) {
+
+      for (let i = 0; i < possibilities.length; i++) {
+
+        const target = possibilities[i];
+
+        const index = headers.indexOf(target);
+
+        if (index !== -1) {
+          return index;
+        }
+      }
+
+      return -1;
+    }
+
+
+    function parseMoney(value) {
+
+      return parseFloat(
+        String(value)
+          .replace(/[$,]/g, "")
+          .replace(/[()]/g, "")
+          .trim()
+      );
+    }
+
+
+    function cleanMerchant(value) {
+
+      return String(value)
+        .replace(/\s+/g, " ")
+        .replace(/[*#]/g, "")
+        .trim();
+    }
+
+
+    function parseCSVLine(line) {
+
+      const result = [];
+
+      let current = "";
+
+      let insideQuotes = false;
+
+      for (let i = 0; i < line.length; i++) {
+
+        const char = line[i];
+
+        if (char === '"') {
+
+          insideQuotes = !insideQuotes;
+
+        } else if (char === "," && !insideQuotes) {
+
+          result.push(current.trim());
+
+          current = "";
+
+        } else {
+
+          current += char;
+        }
+      }
+
+      result.push(current.trim());
+
+      return result;
+    }
+
+
+    function escapeHTML(value) {
+
+      return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+  </script>
+
+</body>
+</html>
