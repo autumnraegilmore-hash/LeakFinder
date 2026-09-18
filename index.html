@@ -3,9 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title>LeakFinder</title>
 
 <style>
+
 * {
     box-sizing: border-box;
 }
@@ -90,17 +92,6 @@ input[type="file"] {
     line-height: 1.5;
 }
 
-.big-number {
-    font-size: 38px;
-    font-weight: 800;
-    margin: 8px 0;
-}
-
-.small-label {
-    color: #777;
-    font-size: 14px;
-}
-
 .result {
     border: 1px solid #eee;
     border-radius: 14px;
@@ -124,13 +115,27 @@ input[type="file"] {
     margin-top: 4px;
 }
 
-.reason {
-    background: #f5f5f5;
-    padding: 10px;
-    border-radius: 9px;
-    margin-top: 12px;
+.details {
+    color: #777;
     font-size: 13px;
-    color: #555;
+    margin-top: 8px;
+}
+
+.summary {
+    border-top: 1px solid #eee;
+    margin-top: 25px;
+    padding-top: 22px;
+}
+
+.summary-label {
+    color: #777;
+    font-size: 14px;
+}
+
+.big-number {
+    font-size: 38px;
+    font-weight: 800;
+    margin: 8px 0;
 }
 
 #results {
@@ -141,12 +146,18 @@ input[type="file"] {
     color: #666;
 }
 
+.error {
+    color: #a33;
+    line-height: 1.5;
+}
+
 .footer {
     text-align: center;
     color: #888;
     font-size: 12px;
     padding: 20px 0;
 }
+
 </style>
 </head>
 
@@ -169,7 +180,7 @@ Where is your money going?
 </h2>
 
 <p>
-LeakFinder looks for recurring charges in your transaction history.
+LeakFinder helps you spot recurring expenses and financial obligations that are easy to overlook.
 </p>
 
 <button onclick="runDemo()">
@@ -181,21 +192,22 @@ Try Demo
 <div class="card">
 
 <h2>
-Analyze your transactions
+Take a look at your recurring expenses
 </h2>
 
 <p>
-Export your transactions from your bank as a CSV file and upload it here.
+Have a list of financial obligations? Upload it here.
+Or, if you prefer, upload your bank account transactions.
 </p>
 
 <input
     type="file"
     id="fileInput"
-    accept=".csv"
+    accept=".csv,.txt"
 >
 
 <button onclick="analyzeFile()">
-Analyze Transactions
+Find Recurring Expenses
 </button>
 
 <div class="privacy">
@@ -207,23 +219,23 @@ It is not uploaded to a LeakFinder server.
 
 <div id="results" class="card">
 
-<div class="small-label">
-Potential recurring spending
-</div>
-
-<div id="total" class="big-number">
-$0
-</div>
-
-<div class="small-label">
-estimated annual cost
-</div>
-
-<h2 style="margin-top:30px;">
-Recurring charges
+<h2>
+Your recurring expenses
 </h2>
 
 <div id="resultList"></div>
+
+<div class="summary">
+
+<div class="summary-label">
+Estimated annual cost of these recurring expenses
+</div>
+
+<div id="total" class="big-number">
+$0.00
+</div>
+
+</div>
 
 </div>
 
@@ -233,12 +245,55 @@ LeakFinder • Early version
 
 </div>
 
+
 <script>
+
+/* -------------------------
+   DEMO
+------------------------- */
+
+function runDemo() {
+
+    const demoData = [
+
+        {
+            merchant: "Netflix",
+            monthly: 17.99,
+            charges: 3,
+            interval: 30
+        },
+
+        {
+            merchant: "Planet Fitness",
+            monthly: 25.00,
+            charges: 3,
+            interval: 30
+        },
+
+        {
+            merchant: "Spotify",
+            monthly: 11.99,
+            charges: 3,
+            interval: 30
+        }
+
+    ];
+
+    showResults(demoData);
+}
+
+
+/* -------------------------
+   DISPLAY RESULTS
+------------------------- */
 
 function showResults(items) {
 
-    const results = document.getElementById("results");
-    const list = document.getElementById("resultList");
+    const results =
+        document.getElementById("results");
+
+    const list =
+        document.getElementById("resultList");
 
     list.innerHTML = "";
 
@@ -248,7 +303,7 @@ function showResults(items) {
 
         list.innerHTML = `
             <p class="empty">
-            We couldn't identify any obvious recurring charges.
+            We couldn't identify any obvious recurring expenses.
             </p>
         `;
 
@@ -256,18 +311,39 @@ function showResults(items) {
 
     items.forEach(item => {
 
-        const yearly = item.monthly * 12;
+        const yearly =
+            item.monthly * 12;
 
         total += yearly;
 
-        const div = document.createElement("div");
+        const div =
+            document.createElement("div");
 
         div.className = "result";
+
+        let details = "";
+
+        if (item.charges) {
+
+            details =
+                item.charges +
+                " charges";
+
+            if (item.interval) {
+
+                details +=
+                    " • about " +
+                    Math.round(item.interval) +
+                    " days apart";
+
+            }
+
+        }
 
         div.innerHTML = `
 
             <div class="merchant">
-                ${item.merchant}
+                ${escapeHTML(item.merchant)}
             </div>
 
             <div class="monthly">
@@ -275,12 +351,16 @@ function showResults(items) {
             </div>
 
             <div class="yearly">
-                Approximately $${yearly.toFixed(2)}/year
+                Approximately
+                $${yearly.toFixed(2)}/year
             </div>
 
-            <div class="reason">
-                🔎 This charge appears regularly at a similar amount.
-            </div>
+            ${
+                details
+                ? `<div class="details">${details}</div>`
+                : ""
+            }
+
         `;
 
         list.appendChild(div);
@@ -295,239 +375,963 @@ function showResults(items) {
     results.scrollIntoView({
         behavior: "smooth"
     });
+
 }
 
 
-/* DEMO */
+/* -------------------------
+   SAFE TEXT
+------------------------- */
 
-function runDemo() {
+function escapeHTML(text) {
 
-    const demoData = [
+    return String(text)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 
-        {
-            merchant: "Netflix",
-            monthly: 17.99
-        },
+}
 
-        {
-            merchant: "Planet Fitness",
-            monthly: 25.00
-        },
 
-        {
-            merchant: "Spotify",
-            monthly: 11.99
+/* -------------------------
+   CSV PARSER
+   Handles quoted commas
+------------------------- */
+
+function parseCSV(text) {
+
+    text =
+        text.replace(/^\uFEFF/, "");
+
+    const rows = [];
+
+    let row = [];
+
+    let cell = "";
+
+    let insideQuotes = false;
+
+    for (let i = 0; i < text.length; i++) {
+
+        const char = text[i];
+
+        const next = text[i + 1];
+
+        if (char === '"' && insideQuotes && next === '"') {
+
+            cell += '"';
+
+            i++;
+
         }
 
-    ];
+        else if (char === '"') {
 
-    showResults(demoData);
+            insideQuotes = !insideQuotes;
+
+        }
+
+        else if (
+            (char === "," ||
+             char === "\t" ||
+             char === ";")
+            &&
+            !insideQuotes
+        ) {
+
+            row.push(cell.trim());
+
+            cell = "";
+
+        }
+
+        else if (
+            (char === "\n" || char === "\r")
+            &&
+            !insideQuotes
+        ) {
+
+            if (char === "\r" && next === "\n") {
+                i++;
+            }
+
+            row.push(cell.trim());
+
+            if (row.some(value => value !== "")) {
+                rows.push(row);
+            }
+
+            row = [];
+
+            cell = "";
+
+        }
+
+        else {
+
+            cell += char;
+
+        }
+
+    }
+
+    if (cell !== "" || row.length > 0) {
+
+        row.push(cell.trim());
+
+        if (row.some(value => value !== "")) {
+            rows.push(row);
+        }
+
+    }
+
+    return rows;
 }
 
 
-/* SMART CSV ANALYZER */
+/* -------------------------
+   HEADER DETECTION
+------------------------- */
+
+function normalizeHeader(text) {
+
+    return String(text)
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "");
+
+}
+
+
+function findColumn(headers, names) {
+
+    for (const name of names) {
+
+        const wanted =
+            normalizeHeader(name);
+
+        for (let i = 0; i < headers.length; i++) {
+
+            const current =
+                normalizeHeader(headers[i]);
+
+            if (current === wanted) {
+                return i;
+            }
+
+        }
+
+    }
+
+    return -1;
+}
+
+
+/* -------------------------
+   DATE PARSER
+------------------------- */
+
+function parseDate(value) {
+
+    if (!value)
+        return null;
+
+    let text =
+        String(value).trim();
+
+    if (!text)
+        return null;
+
+    /*
+       YYYY-MM-DD
+    */
+
+    let match =
+        text.match(
+            /^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/
+        );
+
+    if (match) {
+
+        const year =
+            Number(match[1]);
+
+        const month =
+            Number(match[2]) - 1;
+
+        const day =
+            Number(match[3]);
+
+        const date =
+            new Date(
+                year,
+                month,
+                day
+            );
+
+        if (!isNaN(date.getTime()))
+            return date;
+
+    }
+
+    /*
+       MM/DD/YYYY
+       MM-DD-YYYY
+    */
+
+    match =
+        text.match(
+            /^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/
+        );
+
+    if (match) {
+
+        const month =
+            Number(match[1]) - 1;
+
+        const day =
+            Number(match[2]);
+
+        const year =
+            Number(match[3]);
+
+        const date =
+            new Date(
+                year,
+                month,
+                day
+            );
+
+        if (!isNaN(date.getTime()))
+            return date;
+
+    }
+
+    const fallback =
+        new Date(text);
+
+    if (!isNaN(fallback.getTime()))
+        return fallback;
+
+    return null;
+}
+
+
+/* -------------------------
+   MONEY PARSER
+------------------------- */
+
+function parseMoney(value) {
+
+    if (
+        value === null ||
+        value === undefined
+    ) {
+        return null;
+    }
+
+    let text =
+        String(value).trim();
+
+    if (!text)
+        return null;
+
+    /*
+       Remove currency symbols,
+       spaces and thousands commas.
+    */
+
+    text =
+        text
+            .replace(/\$/g, "")
+            .replace(/,/g, "")
+            .replace(/\s/g, "");
+
+    /*
+       Parentheses often mean
+       a negative transaction.
+    */
+
+    let negative = false;
+
+    if (
+        text.startsWith("(") &&
+        text.endsWith(")")
+    ) {
+
+        negative = true;
+
+        text =
+            text.substring(
+                1,
+                text.length - 1
+            );
+
+    }
+
+    const number =
+        parseFloat(text);
+
+    if (isNaN(number))
+        return null;
+
+    return negative
+        ? -Math.abs(number)
+        : number;
+}
+
+
+/* -------------------------
+   MERCHANT CLEANUP
+------------------------- */
+
+function cleanMerchant(value) {
+
+    let merchant =
+        String(value || "").trim();
+
+    merchant =
+        merchant
+            .replace(/\s+/g, " ")
+            .replace(/\b\d{4,}\b/g, "")
+            .trim();
+
+    return merchant;
+}
+
+
+/* -------------------------
+   FIND TRANSACTION COLUMNS
+------------------------- */
+
+function detectColumns(headers) {
+
+    const dateColumn =
+        findColumn(
+            headers,
+            [
+                "date",
+                "transaction date",
+                "posting date",
+                "posted date",
+                "trans date",
+                "effective date"
+            ]
+        );
+
+    const descriptionColumn =
+        findColumn(
+            headers,
+            [
+                "description",
+                "merchant",
+                "payee",
+                "name",
+                "transaction description",
+                "merchant name",
+                "memo"
+            ]
+        );
+
+    const amountColumn =
+        findColumn(
+            headers,
+            [
+                "amount",
+                "transaction amount",
+                "value",
+                "charge",
+                "purchase amount"
+            ]
+        );
+
+    const debitColumn =
+        findColumn(
+            headers,
+            [
+                "debit",
+                "debits",
+                "withdrawal",
+                "withdrawals",
+                "withdrawal amount",
+                "charges"
+            ]
+        );
+
+    const creditColumn =
+        findColumn(
+            headers,
+            [
+                "credit",
+                "credits",
+                "deposit",
+                "deposits",
+                "deposit amount"
+            ]
+        );
+
+    const typeColumn =
+        findColumn(
+            headers,
+            [
+                "type",
+                "transaction type",
+                "category"
+            ]
+        );
+
+    return {
+        dateColumn,
+        descriptionColumn,
+        amountColumn,
+        debitColumn,
+        creditColumn,
+        typeColumn
+    };
+}
+
+
+/* -------------------------
+   ANALYZE FILE
+------------------------- */
 
 function analyzeFile() {
 
-    const input = document.getElementById("fileInput");
+    const input =
+        document.getElementById("fileInput");
 
     if (!input.files.length) {
 
-        alert("Please choose a CSV file first.");
+        alert(
+            "Please choose a CSV file first."
+        );
 
         return;
     }
 
-    const file = input.files[0];
+    const file =
+        input.files[0];
 
-    const reader = new FileReader();
+    const reader =
+        new FileReader();
 
-    reader.onload = function(event) {
+    reader.onload =
+    function(event) {
 
-        const text = event.target.result;
+        try {
 
-        const lines = text.split(/\r?\n/);
+            const text =
+                event.target.result;
 
-        const transactions = {};
+            const rows =
+                parseCSV(text);
 
-        for (let i = 1; i < lines.length; i++) {
+            if (rows.length < 2) {
 
-            const line = lines[i].trim();
+                alert(
+                    "This file doesn't appear to contain enough transaction data."
+                );
 
-            if (!line)
-                continue;
-
-            const parts = line.split(",");
-
-            if (parts.length < 4)
-                continue;
-
-            /*
-             Expected format:
-
-             Date,Description,Amount
-
-             This also works with the test file where
-             the date appears before the merchant and amount.
-            */
-
-            let dateText = "";
-            let merchant = "";
-            let amountText = "";
-
-            if (parts.length >= 4) {
-
-                dateText = parts[1].trim();
-                merchant = parts[2].trim();
-                amountText = parts[3].trim();
-
-            } else {
-
-                dateText = parts[0].trim();
-                merchant = parts[1].trim();
-                amountText = parts[2].trim();
-
+                return;
             }
 
-            const date = new Date(dateText);
+            const headers =
+                rows[0];
 
-            const amount = parseFloat(
-                amountText
-                    .replace("$", "")
-                    .replace(",", "")
-            );
+            const columns =
+                detectColumns(headers);
+
+            /*
+               We need at least:
+               date + description
+            */
 
             if (
-                !merchant ||
-                isNaN(amount) ||
-                isNaN(date.getTime())
+                columns.dateColumn === -1 ||
+                columns.descriptionColumn === -1
             ) {
-                continue;
+
+                showFileError(
+                    "LeakFinder couldn't identify the date and transaction description columns in this file."
+                );
+
+                return;
             }
 
             /*
-             Ignore refunds / credits.
-             We are looking for spending.
+               We need either:
+               amount
+               OR
+               debit/withdrawal
             */
 
-            if (amount <= 0)
-                continue;
+            if (
+                columns.amountColumn === -1 &&
+                columns.debitColumn === -1
+            ) {
 
-            if (!transactions[merchant]) {
+                showFileError(
+                    "LeakFinder couldn't identify the transaction amount in this file."
+                );
 
-                transactions[merchant] = [];
-
+                return;
             }
 
-            transactions[merchant].push({
-                date: date,
-                amount: amount
-            });
+            const transactions = {};
 
-        }
+            for (
+                let i = 1;
+                i < rows.length;
+                i++
+            ) {
 
-        const recurring = [];
+                const row =
+                    rows[i];
 
-        for (const merchant in transactions) {
+                if (!row.length)
+                    continue;
 
-            const items = transactions[merchant];
+                const date =
+                    parseDate(
+                        row[
+                            columns.dateColumn
+                        ]
+                    );
 
-            /*
-             Need at least 3 charges.
-            */
+                if (!date)
+                    continue;
 
-            if (items.length < 3)
-                continue;
+                let merchant =
+                    cleanMerchant(
+                        row[
+                            columns.descriptionColumn
+                        ]
+                    );
 
-            items.sort(
-                (a, b) => a.date - b.date
-            );
+                if (!merchant)
+                    continue;
 
-            /*
-             Check that charges happen
-             roughly every month.
-            */
+                let amount = null;
 
-            const intervals = [];
+                /*
+                   If a debit/withdrawal column exists,
+                   use it first.
+                */
 
-            for (let i = 1; i < items.length; i++) {
+                if (
+                    columns.debitColumn !== -1
+                ) {
 
-                const days =
-                    (items[i].date - items[i - 1].date)
-                    / (1000 * 60 * 60 * 24);
+                    const debit =
+                        parseMoney(
+                            row[
+                                columns.debitColumn
+                            ]
+                        );
 
-                intervals.push(days);
+                    if (
+                        debit !== null &&
+                        debit !== 0
+                    ) {
 
-            }
+                        amount =
+                            Math.abs(debit);
 
-            const averageInterval =
-                intervals.reduce(
-                    (a, b) => a + b,
-                    0
-                ) / intervals.length;
-
-            /*
-             Monthly charges usually fall
-             roughly between 20 and 45 days.
-            */
-
-            const monthlyPattern =
-                averageInterval >= 20 &&
-                averageInterval <= 45;
-
-            if (!monthlyPattern)
-                continue;
-
-            /*
-             Check that the prices are similar.
-            */
-
-            const amounts =
-                items.map(item => item.amount);
-
-            const averageAmount =
-                amounts.reduce(
-                    (a, b) => a + b,
-                    0
-                ) / amounts.length;
-
-            let similarAmounts = true;
-
-            for (const amount of amounts) {
-
-                const difference =
-                    Math.abs(
-                        amount - averageAmount
-                    ) / averageAmount;
-
-                if (difference > 0.20) {
-
-                    similarAmounts = false;
-
-                    break;
+                    }
 
                 }
 
+                /*
+                   Otherwise use Amount.
+                */
+
+                if (
+                    amount === null &&
+                    columns.amountColumn !== -1
+                ) {
+
+                    const raw =
+                        row[
+                            columns.amountColumn
+                        ];
+
+                    const parsed =
+                        parseMoney(raw);
+
+                    if (parsed !== null) {
+
+                        /*
+                           A negative amount usually means
+                           money leaving the account in many
+                           bank exports.
+
+                           A positive amount may also mean
+                           money leaving the account in other
+                           bank exports.
+
+                           We therefore use the absolute value,
+                           while checking obvious deposits below.
+                        */
+
+                        amount =
+                            Math.abs(parsed);
+
+                    }
+
+                }
+
+                if (
+                    amount === null ||
+                    amount === 0
+                ) {
+                    continue;
+                }
+
+                /*
+                   Skip obvious deposits/transfers/refunds.
+                */
+
+                let transactionType = "";
+
+                if (
+                    columns.typeColumn !== -1
+                ) {
+
+                    transactionType =
+                        String(
+                            row[
+                                columns.typeColumn
+                            ] || ""
+                        ).toLowerCase();
+
+                }
+
+                const combined =
+                    (
+                        merchant +
+                        " " +
+                        transactionType
+                    ).toLowerCase();
+
+                const looksLikeDeposit =
+                    combined.includes("deposit") ||
+                    combined.includes("payroll") ||
+                    combined.includes("salary") ||
+                    combined.includes("refund") ||
+                    combined.includes("interest income") ||
+                    combined.includes("transfer from") ||
+                    combined.includes("payment received");
+
+                if (looksLikeDeposit)
+                    continue;
+
+                /*
+                   Create a normalized merchant key.
+                */
+
+                const key =
+                    merchant
+                        .toLowerCase()
+                        .replace(
+                            /[^a-z0-9]/g,
+                            ""
+                        );
+
+                if (!key)
+                    continue;
+
+                if (!transactions[key]) {
+
+                    transactions[key] = {
+
+                        merchant:
+                            merchant,
+
+                        items: []
+
+                    };
+
+                }
+
+                transactions[key].items.push({
+
+                    date:
+                        date,
+
+                    amount:
+                        amount
+
+                });
+
             }
 
-            if (!similarAmounts)
-                continue;
 
-            recurring.push({
+            /* -------------------------
+               FIND RECURRING EXPENSES
+            ------------------------- */
 
-                merchant: merchant,
+            const recurring = [];
 
-                monthly: averageAmount
+            for (
+                const key in transactions
+            ) {
 
-            });
+                const record =
+                    transactions[key];
+
+                const items =
+                    record.items;
+
+                if (items.length < 3)
+                    continue;
+
+                items.sort(
+                    (a, b) =>
+                    a.date - b.date
+                );
+
+                /*
+                   Remove exact duplicate
+                   date/amount entries.
+                */
+
+                const cleaned = [];
+
+                for (const item of items) {
+
+                    const previous =
+                        cleaned[
+                            cleaned.length - 1
+                        ];
+
+                    if (
+                        previous &&
+                        previous.date.getTime() ===
+                        item.date.getTime() &&
+                        previous.amount ===
+                        item.amount
+                    ) {
+
+                        continue;
+
+                    }
+
+                    cleaned.push(item);
+
+                }
+
+                if (cleaned.length < 3)
+                    continue;
+
+
+                /* -------------------------
+                   INTERVAL CHECK
+                ------------------------- */
+
+                const intervals = [];
+
+                for (
+                    let i = 1;
+                    i < cleaned.length;
+                    i++
+                ) {
+
+                    const days =
+                        (
+                            cleaned[i].date -
+                            cleaned[i - 1].date
+                        )
+                        /
+                        (
+                            1000 *
+                            60 *
+                            60 *
+                            24
+                        );
+
+                    intervals.push(days);
+
+                }
+
+                /*
+                   Monthly recurring charges:
+                   roughly every 20–45 days.
+
+                   Every interval must fit this range.
+                */
+
+                const monthlyIntervals =
+                    intervals.filter(
+                        days =>
+                            days >= 20 &&
+                            days <= 45
+                    );
+
+                if (
+                    monthlyIntervals.length <
+                    Math.max(
+                        2,
+                        Math.ceil(
+                            intervals.length * 0.67
+                        )
+                    )
+                ) {
+
+                    continue;
+
+                }
+
+                const averageInterval =
+                    monthlyIntervals.reduce(
+                        (a, b) => a + b,
+                        0
+                    )
+                    /
+                    monthlyIntervals.length;
+
+
+                /* -------------------------
+                   AMOUNT CHECK
+                ------------------------- */
+
+                const amounts =
+                    cleaned.map(
+                        item =>
+                            item.amount
+                    );
+
+                const sortedAmounts =
+                    [...amounts].sort(
+                        (a, b) => a - b
+                    );
+
+                const middle =
+                    Math.floor(
+                        sortedAmounts.length / 2
+                    );
+
+                const median =
+                    sortedAmounts.length % 2
+                    ? sortedAmounts[middle]
+                    : (
+                        sortedAmounts[middle - 1] +
+                        sortedAmounts[middle]
+                    ) / 2;
+
+                if (
+                    !median ||
+                    median <= 0
+                ) {
+                    continue;
+                }
+
+                /*
+                   Most recurring charges should be
+                   reasonably close to their normal amount.
+
+                   We allow 20%.
+                */
+
+                const similarAmounts =
+                    amounts.every(
+                        amount => {
+
+                            const difference =
+                                Math.abs(
+                                    amount -
+                                    median
+                                ) / median;
+
+                            return difference <= 0.20;
+
+                        }
+                    );
+
+                if (!similarAmounts)
+                    continue;
+
+
+                /* -------------------------
+                   SAVE RESULT
+                ------------------------- */
+
+                recurring.push({
+
+                    merchant:
+                        record.merchant,
+
+                    monthly:
+                        median,
+
+                    charges:
+                        cleaned.length,
+
+                    interval:
+                        averageInterval
+
+                });
+
+            }
+
+
+            /*
+               Put the strongest recurring patterns
+               first.
+            */
+
+            recurring.sort(
+                (a, b) =>
+                    b.monthly - a.monthly
+            );
+
+            showResults(recurring);
 
         }
 
-        showResults(recurring);
+        catch (error) {
+
+            showFileError(
+                "Something unexpected happened while reading this file. Please try another CSV export."
+            );
+
+            console.error(error);
+
+        }
 
     };
 
     reader.readAsText(file);
+
+}
+
+
+/* -------------------------
+   FILE ERROR
+------------------------- */
+
+function showFileError(message) {
+
+    const results =
+        document.getElementById("results");
+
+    const list =
+        document.getElementById("resultList");
+
+    list.innerHTML = `
+        <p class="error">
+        ${escapeHTML(message)}
+        </p>
+    `;
+
+    document.getElementById("total").textContent =
+        "$0.00";
+
+    results.style.display = "block";
+
+    results.scrollIntoView({
+        behavior: "smooth"
+    });
 
 }
 
